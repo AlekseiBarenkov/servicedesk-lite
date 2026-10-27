@@ -1,7 +1,4 @@
-export const DB_STORAGE_KEY = 'servicedesk-lite:db'
 export const DB_SCHEMA_VERSION = 1
-
-export const CURRENT_USER_ID = 'user-dispatcher'
 
 export const PRIORITY = {
   1: 'Низкий',

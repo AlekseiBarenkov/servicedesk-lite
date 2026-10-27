@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { categorySchema, clientSchema, masterSchema, requestSchema, userSchema } from './schema'
-import type { Db, DbMeta, DbTables } from './types'
+import type { Db, DbMeta, DbTables } from '../model/types'
 
 const dbTablesSchema: z.ZodType<DbTables> = z.object({
   users: z.array(userSchema),

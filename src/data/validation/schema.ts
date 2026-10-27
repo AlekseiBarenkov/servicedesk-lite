@@ -1,15 +1,15 @@
 import { z } from 'zod'
 
-import { HISTORY_EVENT_TYPE, PRIORITY_VALUES, REQUEST_STATUS, REQUEST_STATUS_VALUES } from './constants'
-import type { RequestStatus } from './constants'
-import { PHONE_NORMALIZED_PATTERN } from './phone'
-import type { Category, Client, Comment, FieldChange, HistoryEntry, Master, Request, User } from './types'
+import { HISTORY_EVENT_TYPE, PRIORITY_VALUES, REQUEST_STATUS, REQUEST_STATUS_VALUES } from '../model/constants'
+import type { RequestStatus } from '../model/constants'
+import { PHONE_NORMALIZED_PATTERN } from '../model/phone'
+import type { Category, Client, Comment, FieldChange, HistoryEntry, Master, Request, User } from '../model/types'
 
 const idSchema = z.string().min(1, 'Идентификатор обязателен')
 const timestampSchema = z.number().int().nonnegative()
 const statusSchema: z.ZodType<RequestStatus> = z.enum(REQUEST_STATUS_VALUES)
 
-const requiredText = (message: string) => z.string().trim().min(1, message)
+export const requiredText = (message: string) => z.string().trim().min(1, message)
 const nullableText = (message: string) => requiredText(message).nullable()
 
 const personSchema = z.object({
