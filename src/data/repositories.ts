@@ -10,6 +10,8 @@ export const clientsRepo = {
     db.tables.clients.find((client) => client.clientId === clientId) ?? null,
   findByPhone: (db: Db, phone: string): Client | null =>
     db.tables.clients.find((client) => client.phone === phone) ?? null,
+  listByPhonePart: (db: Db, digits: string): Client[] =>
+    digits === '' ? [] : db.tables.clients.filter((client) => client.phone.includes(digits)),
 }
 
 export const mastersRepo = {

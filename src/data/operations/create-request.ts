@@ -10,11 +10,7 @@ import { dbSchema } from '../validation/db-schema'
 import { RULE_VIOLATION_CODE, RuleViolation } from '../validation/rules'
 import { requiredText } from '../validation/schema'
 
-const optionalInputText = z.string().transform((value) => {
-  const trimmed = value.trim()
-
-  return trimmed === '' ? null : trimmed
-})
+const optionalInputText = z.string().trim()
 
 const phoneInputSchema = z.string().transform((value, ctx) => {
   const normalized = normalizePhone(value)
@@ -29,12 +25,8 @@ const phoneInputSchema = z.string().transform((value, ctx) => {
 
 const emailInputSchema = z
   .string()
-  .transform((value) => {
-    const trimmed = value.trim().toLowerCase()
-
-    return trimmed === '' ? null : trimmed
-  })
-  .pipe(z.email('Некорректный email').nullable())
+  .trim()
+  .refine((value) => value === '' || z.email().safeParse(value).success, 'Некорректный email')
 
 export const createRequestInputSchema = z.object({
   firstName: requiredText('Укажите имя'),
@@ -58,10 +50,10 @@ const formatRequestNumber = (value: number): string => `SD-${String(value).padSt
 const buildClient = (values: CreateRequestValues, existingClient: Client | null): Client => ({
   clientId: existingClient === null ? crypto.randomUUID() : existingClient.clientId,
   firstName: values.firstName,
-  lastName: values.lastName,
-  patronymic: values.patronymic,
+  lastName: values.lastName === '' ? null : values.lastName,
+  patronymic: values.patronymic === '' ? null : values.patronymic,
   phone: values.phone,
-  email: values.email,
+  email: values.email === '' ? null : values.email.toLowerCase(),
   lastAddress: values.address,
 })
 

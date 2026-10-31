@@ -1,11 +1,12 @@
 import dayjs from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
+import type { Dayjs } from 'dayjs'
 
 dayjs.extend(customParseFormat)
 
 export const CALENDAR_DATE_STORAGE_FORMAT = 'YYYY-MM-DD'
 
-const CALENDAR_DATE_DISPLAY_FORMAT = 'DD.MM.YYYY'
+export const CALENDAR_DATE_DISPLAY_FORMAT = 'DD.MM.YYYY'
 const DATE_TIME_DISPLAY_FORMAT = 'DD.MM.YYYY, HH:mm'
 const EMPTY_DATE_PLACEHOLDER = '—'
 
@@ -25,3 +26,9 @@ export const formatCalendarDate = (value: string | null): string =>
     : dayjs(value, CALENDAR_DATE_STORAGE_FORMAT).format(CALENDAR_DATE_DISPLAY_FORMAT)
 
 export const formatDateTime = (timestamp: number): string => dayjs(timestamp).format(DATE_TIME_DISPLAY_FORMAT)
+
+export const fromCalendarDate = (value: string | null): Dayjs | null =>
+  value === null ? null : dayjs(value, CALENDAR_DATE_STORAGE_FORMAT)
+
+export const toCalendarDate = (value: Dayjs | null): string | null =>
+  value === null ? null : value.format(CALENDAR_DATE_STORAGE_FORMAT)
