@@ -31,14 +31,16 @@ const PRIORITY_OPTIONS = PRIORITY_VALUES.map((priority) => ({
 
 type FormFieldProps = {
   label: string
+  htmlFor: string
   error?: string
   required?: boolean
   children: ReactNode
 }
 
-const FormField = ({ label, error, required, children }: FormFieldProps) => (
+const FormField = ({ label, htmlFor, error, required, children }: FormFieldProps) => (
   <Form.Item
     label={label}
+    htmlFor={htmlFor}
     required={required}
     validateStatus={error === undefined ? undefined : 'error'}
     help={error}
@@ -65,8 +67,8 @@ export const RequestFormFields = ({
         control={control}
         name="firstName"
         render={({ field, fieldState }) => (
-          <FormField label="Имя" required error={fieldState.error?.message}>
-            <Input {...field} autoComplete="off" />
+          <FormField label="Имя" htmlFor="firstName" required error={fieldState.error?.message}>
+            <Input id="firstName" {...field} autoComplete="off" />
           </FormField>
         )}
       />
@@ -74,8 +76,8 @@ export const RequestFormFields = ({
         control={control}
         name="lastName"
         render={({ field, fieldState }) => (
-          <FormField label="Фамилия" error={fieldState.error?.message}>
-            <Input {...field} autoComplete="off" />
+          <FormField label="Фамилия" htmlFor="lastName" error={fieldState.error?.message}>
+            <Input id="lastName" {...field} autoComplete="off" />
           </FormField>
         )}
       />
@@ -83,8 +85,8 @@ export const RequestFormFields = ({
         control={control}
         name="patronymic"
         render={({ field, fieldState }) => (
-          <FormField label="Отчество" error={fieldState.error?.message}>
-            <Input {...field} autoComplete="off" />
+          <FormField label="Отчество" htmlFor="patronymic" error={fieldState.error?.message}>
+            <Input id="patronymic" {...field} autoComplete="off" />
           </FormField>
         )}
       />
@@ -92,8 +94,9 @@ export const RequestFormFields = ({
         control={control}
         name="phone"
         render={({ field, fieldState }) => (
-          <FormField label="Телефон" required error={fieldState.error?.message}>
+          <FormField label="Телефон" htmlFor="phone" required error={fieldState.error?.message}>
             <AutoComplete
+              id="phone"
               value={field.value}
               options={clientOptions ?? []}
               placeholder="+7 (999) 123-45-67"
@@ -115,8 +118,8 @@ export const RequestFormFields = ({
         control={control}
         name="email"
         render={({ field, fieldState }) => (
-          <FormField label="Email" error={fieldState.error?.message}>
-            <Input {...field} autoComplete="off" placeholder="client@example.com" />
+          <FormField label="Email" htmlFor="email" error={fieldState.error?.message}>
+            <Input id="email" {...field} autoComplete="off" placeholder="client@example.com" />
           </FormField>
         )}
       />
@@ -124,8 +127,8 @@ export const RequestFormFields = ({
         control={control}
         name="address"
         render={({ field, fieldState }) => (
-          <FormField label="Адрес выезда" required error={fieldState.error?.message}>
-            <Input {...field} autoComplete="off" placeholder="Улица, дом, квартира" />
+          <FormField label="Адрес выезда" htmlFor="address" required error={fieldState.error?.message}>
+            <Input id="address" {...field} autoComplete="off" placeholder="Улица, дом, квартира" />
           </FormField>
         )}
       />
@@ -133,8 +136,9 @@ export const RequestFormFields = ({
         control={control}
         name="categoryId"
         render={({ field, fieldState }) => (
-          <FormField label="Категория техники" required error={fieldState.error?.message}>
+          <FormField label="Категория техники" htmlFor="categoryId" required error={fieldState.error?.message}>
             <Select
+              id="categoryId"
               value={field.value === '' ? undefined : field.value}
               options={categoryOptions}
               placeholder="Выберите категорию"
@@ -153,8 +157,8 @@ export const RequestFormFields = ({
         control={control}
         name="description"
         render={({ field, fieldState }) => (
-          <FormField label="Описание неисправности" required error={fieldState.error?.message}>
-            <Input.TextArea {...field} autoComplete="off" rows={3} />
+          <FormField label="Описание неисправности" htmlFor="description" required error={fieldState.error?.message}>
+            <Input.TextArea id="description" {...field} autoComplete="off" rows={3} />
           </FormField>
         )}
       />
@@ -162,8 +166,8 @@ export const RequestFormFields = ({
         control={control}
         name="priority"
         render={({ field, fieldState }) => (
-          <FormField label="Приоритет" error={fieldState.error?.message}>
-            <Select value={field.value} options={PRIORITY_OPTIONS} onChange={field.onChange} />
+          <FormField label="Приоритет" htmlFor="priority" error={fieldState.error?.message}>
+            <Select id="priority" value={field.value} options={PRIORITY_OPTIONS} onChange={field.onChange} />
           </FormField>
         )}
       />
@@ -171,8 +175,9 @@ export const RequestFormFields = ({
         control={control}
         name="masterId"
         render={({ field, fieldState }) => (
-          <FormField label="Мастер" error={fieldState.error?.message}>
+          <FormField label="Мастер" htmlFor="masterId" error={fieldState.error?.message}>
             <Select
+              id="masterId"
               value={field.value === null ? undefined : field.value}
               options={masterOptions}
               disabled={categoryId === ''}
@@ -189,8 +194,9 @@ export const RequestFormFields = ({
         control={control}
         name="plannedDate"
         render={({ field, fieldState }) => (
-          <FormField label="Плановая дата" error={fieldState.error?.message}>
+          <FormField label="Плановая дата" htmlFor="plannedDate" error={fieldState.error?.message}>
             <DatePicker
+              id="plannedDate"
               value={fromCalendarDate(field.value)}
               format={CALENDAR_DATE_DISPLAY_FORMAT}
               style={{ width: '100%' }}
