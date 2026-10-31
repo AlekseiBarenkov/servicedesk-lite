@@ -4,10 +4,10 @@ import { REQUEST_STATUS_LABEL } from '../data/model/constants'
 import type { RequestStatus } from '../data/model/constants'
 
 const STATUS_COLOR: Record<RequestStatus, string> = {
-  new: 'blue',
-  assigned: 'cyan',
-  in_progress: 'orange',
-  done: 'green',
+  new: '#0958d9',
+  assigned: '#006d75',
+  in_progress: '#ad4e00',
+  done: '#237804',
   cancelled: 'default',
 }
 

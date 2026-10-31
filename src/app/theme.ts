@@ -1,5 +1,7 @@
 import type { ThemeConfig } from 'antd'
 
+export const NAVIGATION_BG = '#242a31'
+
 export const themeConfig: ThemeConfig = {
   token: {
     colorPrimary: '#2563eb',
@@ -9,12 +11,12 @@ export const themeConfig: ThemeConfig = {
   },
   components: {
     Layout: {
-      siderBg: '#242a31',
+      siderBg: NAVIGATION_BG,
       headerBg: '#ffffff',
       bodyBg: '#f4f6f8',
     },
     Menu: {
-      darkItemBg: '#242a31',
+      darkItemBg: NAVIGATION_BG,
       darkItemColor: '#c3cad3',
       darkItemHoverBg: '#2f3742',
       darkItemSelectedBg: '#2f6bd8',

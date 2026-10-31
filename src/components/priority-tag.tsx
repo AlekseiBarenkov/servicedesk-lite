@@ -5,10 +5,10 @@ import type { Priority } from '../data/model/constants'
 
 const PRIORITY_COLOR: Record<Priority, string> = {
   1: 'default',
-  2: 'blue',
-  3: 'orange',
-  4: 'red',
-  5: '#a8071a',
+  2: '#0958d9',
+  3: '#ad4e00',
+  4: '#cf1322',
+  5: '#820014',
 }
 
 type PriorityTagProps = {

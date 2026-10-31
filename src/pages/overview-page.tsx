@@ -1,4 +1,4 @@
-import { Card, Empty, Flex, Table, Typography } from 'antd'
+import { Card, Empty, Flex, Grid, Table, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import { Link } from 'react-router'
 
@@ -8,8 +8,8 @@ import { formatPersonName } from '../data/model/person'
 import { isRequestOverdue } from '../data/model/request'
 import type { Request } from '../data/model/types'
 import { selectOverview } from '../data/overview'
-import { clientsRepo } from '../data/repositories'
 import { useDb } from '../data/storage/use-db'
+import { RequestCards } from '../features/request-cards'
 
 type MetricCardProps = {
   title: string
@@ -40,8 +40,13 @@ const MetricCard = ({ title, value, to }: MetricCardProps) => {
 
 const OverviewPage = () => {
   const db = useDb()
+  const screens = Grid.useBreakpoint()
+  const isMobile = screens.md === false
   const today = todayCalendarDate()
   const { metrics, upcoming } = selectOverview(db, today)
+
+  const clientsById = new Map(db.tables.clients.map((client) => [client.clientId, client] as const))
+  const mastersById = new Map(db.tables.masters.map((master) => [master.masterId, master] as const))
 
   const columns: TableProps<Request>['columns'] = [
     {
@@ -54,9 +59,9 @@ const OverviewPage = () => {
       title: 'Клиент',
       key: 'client',
       render: (_, request) => {
-        const client = clientsRepo.findById(db, request.clientId)
+        const client = clientsById.get(request.clientId)
 
-        return client === null ? '-' : formatPersonName(client)
+        return client === undefined ? '-' : formatPersonName(client)
       },
     },
     {
@@ -95,6 +100,14 @@ const OverviewPage = () => {
       <Card title="Ближайшие">
         {upcoming.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Нет незавершённых заявок с плановой датой" />
+        ) : isMobile ? (
+          <RequestCards
+            requests={upcoming}
+            clientsById={clientsById}
+            mastersById={mastersById}
+            today={today}
+            listSearch=""
+          />
         ) : (
           <Table<Request>
             rowKey="requestId"

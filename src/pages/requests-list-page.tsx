@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { SearchOutlined } from '@ant-design/icons'
-import { Button, Empty, Flex, Input, Pagination, Select, Switch, Table, Typography } from 'antd'
+import { Button, Empty, Flex, Grid, Input, Pagination, Select, Switch, Table, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 
@@ -19,6 +19,7 @@ import { readRequestListParams, writeRequestListParams } from '../data/request-l
 import { mastersRepo } from '../data/repositories'
 import { useDb } from '../data/storage/use-db'
 import { CreateRequestDrawer } from '../features/create-request-drawer'
+import { RequestCards } from '../features/request-cards'
 
 const REQUEST_COLUMNS_WIDTH = 940
 const SEARCH_DEBOUNCE_MS = 300
@@ -44,8 +45,10 @@ const RequestsListPage = () => {
   const db = useDb()
   const navigate = useNavigate()
   const location = useLocation()
+  const screens = Grid.useBreakpoint()
   const [searchParams, setSearchParams] = useSearchParams()
   const [isCreateOpen, setCreateOpen] = useState(false)
+  const isMobile = screens.md === false
   const params = readRequestListParams(searchParams)
   const [appliedQuery, setAppliedQuery] = useState(params.query)
 
@@ -193,6 +196,7 @@ const RequestsListPage = () => {
       <Flex wrap gap={12} align="center">
         <Input
           allowClear
+          aria-label="Поиск по номеру, клиенту или телефону"
           value={params.query}
           prefix={<SearchOutlined />}
           placeholder="Номер, клиент или телефон"
@@ -204,6 +208,7 @@ const RequestsListPage = () => {
         <Select
           mode="multiple"
           allowClear
+          aria-label="Фильтр по статусу"
           value={params.statuses}
           options={STATUS_OPTIONS}
           placeholder="Статус"
@@ -216,6 +221,7 @@ const RequestsListPage = () => {
         <Select
           mode="multiple"
           allowClear
+          aria-label="Фильтр по приоритету"
           value={params.priorities}
           options={PRIORITY_OPTIONS}
           placeholder="Приоритет"
@@ -228,6 +234,7 @@ const RequestsListPage = () => {
         <Select
           mode="multiple"
           allowClear
+          aria-label="Фильтр по мастеру"
           value={params.masterIds}
           options={masterOptions}
           placeholder="Мастер"
@@ -238,6 +245,7 @@ const RequestsListPage = () => {
           }}
         />
         <Select
+          aria-label="Сортировка"
           value={params.sort}
           options={SORT_OPTIONS}
           style={{ minWidth: 260 }}
@@ -247,25 +255,40 @@ const RequestsListPage = () => {
         />
         <Flex align="center" gap={8}>
           <Switch
+            id="overdue-filter"
             checked={params.overdueOnly}
             onChange={(value) => {
               updateParams({ overdueOnly: value })
             }}
           />
-          <Typography.Text>Только просроченные</Typography.Text>
+          <label htmlFor="overdue-filter">Только просроченные</label>
         </Flex>
         <Button disabled={!hasActiveFilters} onClick={resetFilters}>
           Сбросить фильтры
         </Button>
       </Flex>
-      <Table<Request>
-        rowKey="requestId"
-        columns={columns}
-        dataSource={selection.items}
-        pagination={false}
-        scroll={{ x: REQUEST_COLUMNS_WIDTH }}
-        locale={{ emptyText }}
-      />
+      {isMobile ? (
+        selection.items.length === 0 ? (
+          emptyText
+        ) : (
+          <RequestCards
+            requests={selection.items}
+            clientsById={clientsById}
+            mastersById={mastersById}
+            today={today}
+            listSearch={location.search}
+          />
+        )
+      ) : (
+        <Table<Request>
+          rowKey="requestId"
+          columns={columns}
+          dataSource={selection.items}
+          pagination={false}
+          scroll={{ x: REQUEST_COLUMNS_WIDTH }}
+          locale={{ emptyText }}
+        />
+      )}
       {selection.total > 0 && (
         <Pagination
           current={selection.page}
