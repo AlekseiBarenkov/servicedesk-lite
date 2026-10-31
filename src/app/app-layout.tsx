@@ -1,6 +1,12 @@
 import { useState } from 'react'
 
-import { MenuFoldOutlined, MenuUnfoldOutlined, ReloadOutlined, UnorderedListOutlined } from '@ant-design/icons'
+import {
+  DashboardOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  ReloadOutlined,
+  UnorderedListOutlined,
+} from '@ant-design/icons'
 import { App as AntApp, Button, Layout, Menu, Popconfirm, Tag, Tooltip, Typography } from 'antd'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 
@@ -10,7 +16,10 @@ import DbGate from './db-gate'
 
 const SIDER_WIDTH = 220
 
-const NAVIGATION_ITEMS = [{ key: '/requests', icon: <UnorderedListOutlined />, label: 'Заявки' }]
+const NAVIGATION_ITEMS = [
+  { key: '/overview', icon: <DashboardOutlined />, label: 'Обзор' },
+  { key: '/requests', icon: <UnorderedListOutlined />, label: 'Заявки' },
+]
 
 const AppLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
@@ -18,7 +27,8 @@ const AppLayout = () => {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const selectedKeys = location.pathname.startsWith('/requests') ? ['/requests'] : []
+  const activeSection = NAVIGATION_ITEMS.find((item) => location.pathname.startsWith(item.key))
+  const selectedKeys = activeSection === undefined ? [] : [activeSection.key]
 
   const handleReset = async (): Promise<void> => {
     try {
