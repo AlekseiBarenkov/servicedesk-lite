@@ -1,66 +1,32 @@
-import { z } from 'zod'
-
-import { HISTORY_EVENT_TYPE, PRIORITY_VALUES, REQUEST_STATUS } from '../model/constants'
+import { HISTORY_EVENT_TYPE, REQUEST_STATUS } from '../model/constants'
 import { nowTimestamp } from '../model/dates'
-import { normalizePhone } from '../model/phone'
+import { normalizeEmail, normalizeOptionalText } from '../model/person'
 import type { Client, Db, HistoryEntry, Request } from '../model/types'
-import { categoriesRepo, clientsRepo, mastersRepo } from '../repositories'
-import { commitDb, getDbState } from '../storage/store'
+import { clientsRepo } from '../repositories'
+import { commitDb } from '../storage/store'
 import { dbSchema } from '../validation/db-schema'
 import { RULE_VIOLATION_CODE, RuleViolation } from '../validation/rules'
-import { requiredText } from '../validation/schema'
-
-const optionalInputText = z.string().trim()
-
-const phoneInputSchema = z.string().transform((value, ctx) => {
-  const normalized = normalizePhone(value)
-
-  if (normalized === null) {
-    ctx.addIssue({ code: 'custom', message: 'Укажите телефон в формате +7 (999) 123-45-67' })
-    return z.NEVER
-  }
-
-  return normalized
-})
-
-const emailInputSchema = z
-  .string()
-  .trim()
-  .refine((value) => value === '' || z.email().safeParse(value).success, 'Некорректный email')
-
-export const createRequestInputSchema = z.object({
-  firstName: requiredText('Укажите имя'),
-  lastName: optionalInputText,
-  patronymic: optionalInputText,
-  phone: phoneInputSchema,
-  email: emailInputSchema,
-  address: requiredText('Укажите адрес выезда'),
-  categoryId: requiredText('Выберите категорию'),
-  description: requiredText('Опишите неисправность'),
-  priority: z.literal(PRIORITY_VALUES),
-  masterId: z.string().nullable(),
-  plannedDate: z.iso.date('Некорректная плановая дата').nullable(),
-})
-
-export type CreateRequestFormValues = z.input<typeof createRequestInputSchema>
-export type CreateRequestValues = z.output<typeof createRequestInputSchema>
+import { requestInputSchema } from './request-input'
+import type { RequestInputData, RequestInputValues } from './request-input'
+import { getCategoryOrThrow, getDbOrThrow, getMasterOrThrow } from './shared'
 
 const formatRequestNumber = (value: number): string => `SD-${String(value).padStart(4, '0')}`
 
-const buildClient = (values: CreateRequestValues, existingClient: Client | null): Client => ({
+const buildClient = (values: RequestInputData, existingClient: Client | null): Client => ({
   clientId: existingClient === null ? crypto.randomUUID() : existingClient.clientId,
   firstName: values.firstName,
-  lastName: values.lastName === '' ? null : values.lastName,
-  patronymic: values.patronymic === '' ? null : values.patronymic,
+  lastName: normalizeOptionalText(values.lastName),
+  patronymic: normalizeOptionalText(values.patronymic),
   phone: values.phone,
-  email: values.email === '' ? null : values.email.toLowerCase(),
+  email: normalizeEmail(values.email),
   lastAddress: values.address,
 })
 
-const buildHistory = (values: CreateRequestValues, userId: string, at: number): HistoryEntry[] => {
+const buildHistory = (requestId: string, values: RequestInputData, userId: string, at: number): HistoryEntry[] => {
   const entries: HistoryEntry[] = [
     {
       historyId: crypto.randomUUID(),
+      requestId,
       createdAt: at,
       userId,
       type: HISTORY_EVENT_TYPE.created,
@@ -70,6 +36,7 @@ const buildHistory = (values: CreateRequestValues, userId: string, at: number): 
   if (values.masterId !== null) {
     entries.push({
       historyId: crypto.randomUUID(),
+      requestId,
       createdAt: at,
       userId,
       type: HISTORY_EVENT_TYPE.masterAssigned,
@@ -79,30 +46,15 @@ const buildHistory = (values: CreateRequestValues, userId: string, at: number): 
 
   return entries
 }
-export const createRequest = async (rawValues: CreateRequestFormValues): Promise<Request> => {
-  const state = getDbState()
 
-  if (state.status !== 'ready') {
-    throw new RuleViolation(RULE_VIOLATION_CODE.dbUnavailable)
-  }
+export const createRequest = async (rawValues: RequestInputValues): Promise<Request> => {
+  const db = getDbOrThrow()
+  const values = requestInputSchema.parse(rawValues)
 
-  const db = state.db
-  const values = createRequestInputSchema.parse(rawValues)
-
-  if (categoriesRepo.findById(db, values.categoryId) === null) {
-    throw new RuleViolation(RULE_VIOLATION_CODE.unknownCategory)
-  }
+  getCategoryOrThrow(db, values.categoryId)
 
   if (values.masterId !== null) {
-    const master = mastersRepo.findById(db, values.masterId)
-
-    if (master === null) {
-      throw new RuleViolation(RULE_VIOLATION_CODE.unknownMaster)
-    }
-
-    if (!master.categoryIds.includes(values.categoryId)) {
-      throw new RuleViolation(RULE_VIOLATION_CODE.categoryNotAllowed)
-    }
+    getMasterOrThrow(db, values.masterId, values.categoryId)
   }
 
   const existingClient = clientsRepo.findByPhone(db, values.phone)
@@ -114,8 +66,9 @@ export const createRequest = async (rawValues: CreateRequestFormValues): Promise
   }
 
   const now = nowTimestamp()
+  const requestId = crypto.randomUUID()
   const request: Request = {
-    requestId: crypto.randomUUID(),
+    requestId,
     clientId: client.clientId,
     masterId: values.masterId,
     categoryId: values.categoryId,
@@ -130,8 +83,6 @@ export const createRequest = async (rawValues: CreateRequestFormValues): Promise
     completedAt: null,
     cancelReason: null,
     resolution: null,
-    comments: [],
-    history: buildHistory(values, db.meta.userId, now),
   }
 
   const nextDb: Db = {
@@ -143,6 +94,7 @@ export const createRequest = async (rawValues: CreateRequestFormValues): Promise
           ? [...db.tables.clients, client]
           : db.tables.clients.map((item) => (item.clientId === client.clientId ? client : item)),
       requests: [...db.tables.requests, request],
+      history: [...db.tables.history, ...buildHistory(requestId, values, db.meta.userId, now)],
     },
     meta: {
       ...db.meta,

@@ -1,19 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { App as AntApp, AutoComplete, Button, DatePicker, Drawer, Form, Input, Select, Space } from 'antd'
-import { Controller, useForm } from 'react-hook-form'
-import type { ReactNode } from 'react'
+import { App as AntApp, Button, Drawer, Space } from 'antd'
+import { useForm } from 'react-hook-form'
 
-import { PRIORITY, PRIORITY_VALUES } from '../data/model/constants'
-import { CALENDAR_DATE_DISPLAY_FORMAT, fromCalendarDate, toCalendarDate } from '../data/model/dates'
 import { formatPersonName } from '../data/model/person'
 import { extractPhoneDigits, formatPhone } from '../data/model/phone'
-import { createRequest, createRequestInputSchema } from '../data/operations/create-request'
-import type { CreateRequestFormValues } from '../data/operations/create-request'
+import { createRequest } from '../data/operations/create-request'
+import { requestInputSchema } from '../data/operations/request-input'
+import type { RequestInputValues } from '../data/operations/request-input'
 import { categoriesRepo, clientsRepo, mastersRepo } from '../data/repositories'
 import { useDb } from '../data/storage/use-db'
 import { describeError } from '../data/validation/rules'
+import { RequestFormFields } from './request-form-fields'
+import { useConfirmDiscard } from './use-confirm-discard'
 
-const DEFAULT_VALUES: CreateRequestFormValues = {
+const CLIENT_SEARCH_MIN_DIGITS = 3
+const DRAWER_SIZE = 'min(520px, 100vw)'
+
+const DEFAULT_VALUES: RequestInputValues = {
   firstName: '',
   lastName: '',
   patronymic: '',
@@ -27,33 +30,6 @@ const DEFAULT_VALUES: CreateRequestFormValues = {
   plannedDate: null,
 }
 
-const PRIORITY_OPTIONS = PRIORITY_VALUES.map((priority) => ({
-  value: priority,
-  label: PRIORITY[priority],
-}))
-
-const DRAWER_SIZE = 'min(520px, 100vw)'
-const CLIENT_SEARCH_MIN_DIGITS = 3
-
-type FormFieldProps = {
-  label: string
-  error?: string
-  required?: boolean
-  children: ReactNode
-}
-
-const FormField = ({ label, error, required, children }: FormFieldProps) => (
-  <Form.Item
-    label={label}
-    required={required}
-    validateStatus={error === undefined ? undefined : 'error'}
-    help={error}
-    style={{ marginBottom: 12 }}
-  >
-    {children}
-  </Form.Item>
-)
-
 type CreateRequestDrawerProps = {
   open: boolean
   onClose: () => void
@@ -62,7 +38,8 @@ type CreateRequestDrawerProps = {
 
 export const CreateRequestDrawer = ({ open, onClose, onCreated }: CreateRequestDrawerProps) => {
   const db = useDb()
-  const { message, modal } = AntApp.useApp()
+  const { message } = AntApp.useApp()
+  const confirmDiscard = useConfirmDiscard()
   const {
     control,
     formState: { isDirty, isSubmitting },
@@ -71,12 +48,13 @@ export const CreateRequestDrawer = ({ open, onClose, onCreated }: CreateRequestD
     reset,
     setValue,
     watch,
-  } = useForm<CreateRequestFormValues>({
+  } = useForm<RequestInputValues>({
     defaultValues: DEFAULT_VALUES,
-    resolver: zodResolver(createRequestInputSchema),
+    resolver: zodResolver(requestInputSchema),
   })
 
   const categoryId = watch('categoryId')
+  const phone = watch('phone')
 
   const categoryOptions = categoriesRepo.list(db).map((category) => {
     const hasMasters = mastersRepo.listByCategory(db, category.categoryId).length > 0
@@ -93,17 +71,6 @@ export const CreateRequestDrawer = ({ open, onClose, onCreated }: CreateRequestD
     label: formatPersonName(master),
   }))
 
-  const handleCategoryChange = (nextCategoryId: string): void => {
-    const currentMasterId = getValues('masterId')
-
-    if (
-      currentMasterId !== null &&
-      !mastersRepo.listByCategory(db, nextCategoryId).some((master) => master.masterId === currentMasterId)
-    ) {
-      setValue('masterId', null)
-    }
-  }
-
   const buildClientOptions = (query: string): { value: string; label: string }[] => {
     const digits = extractPhoneDigits(query)
 
@@ -113,8 +80,19 @@ export const CreateRequestDrawer = ({ open, onClose, onCreated }: CreateRequestD
 
     return clientsRepo.listByPhonePart(db, digits).map((client) => ({
       value: client.phone,
-      label: `${formatPersonName(client)} — ${formatPhone(client.phone)}`,
+      label: `${formatPersonName(client)} - ${formatPhone(client.phone)}`,
     }))
+  }
+
+  const handleCategoryChange = (nextCategoryId: string): void => {
+    const currentMasterId = getValues('masterId')
+
+    if (
+      currentMasterId !== null &&
+      !mastersRepo.listByCategory(db, nextCategoryId).some((master) => master.masterId === currentMasterId)
+    ) {
+      setValue('masterId', null)
+    }
   }
 
   const applyClient = (clientPhone: string): void => {
@@ -151,16 +129,9 @@ export const CreateRequestDrawer = ({ open, onClose, onCreated }: CreateRequestD
       return
     }
 
-    modal.confirm({
-      title: 'Закрыть без сохранения?',
-      content: 'Введённые данные будут потеряны.',
-      okText: 'Закрыть',
-      cancelText: 'Вернуться',
-      okButtonProps: { danger: true },
-      onOk: () => {
-        reset(DEFAULT_VALUES)
-        onClose()
-      },
+    confirmDiscard(() => {
+      reset(DEFAULT_VALUES)
+      onClose()
     })
   }
 
@@ -192,143 +163,15 @@ export const CreateRequestDrawer = ({ open, onClose, onCreated }: CreateRequestD
           void submit(event)
         }}
       >
-        <Form component={false} layout="vertical" requiredMark>
-          <Controller
-            control={control}
-            name="firstName"
-            render={({ field, fieldState }) => (
-              <FormField label="Имя" required error={fieldState.error?.message}>
-                <Input {...field} autoComplete="off" />
-              </FormField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="lastName"
-            render={({ field, fieldState }) => (
-              <FormField label="Фамилия" error={fieldState.error?.message}>
-                <Input {...field} autoComplete="off" />
-              </FormField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="patronymic"
-            render={({ field, fieldState }) => (
-              <FormField label="Отчество" error={fieldState.error?.message}>
-                <Input {...field} autoComplete="off" />
-              </FormField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="phone"
-            render={({ field, fieldState }) => (
-              <FormField label="Телефон" required error={fieldState.error?.message}>
-                <AutoComplete
-                  value={field.value}
-                  options={buildClientOptions(field.value)}
-                  placeholder="+7 (999) 123-45-67"
-                  filterOption={false}
-                  notFoundContent={null}
-                  onChange={(value: string) => {
-                    field.onChange(value)
-                  }}
-                  onSelect={(value: string) => {
-                    applyClient(value)
-                  }}
-                />
-              </FormField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="email"
-            render={({ field, fieldState }) => (
-              <FormField label="Email" error={fieldState.error?.message}>
-                <Input {...field} autoComplete="off" placeholder="client@example.com" />
-              </FormField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="address"
-            render={({ field, fieldState }) => (
-              <FormField label="Адрес выезда" required error={fieldState.error?.message}>
-                <Input {...field} autoComplete="off" placeholder="Улица, дом, квартира" />
-              </FormField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="categoryId"
-            render={({ field, fieldState }) => (
-              <FormField label="Категория техники" required error={fieldState.error?.message}>
-                <Select
-                  value={field.value === '' ? undefined : field.value}
-                  options={categoryOptions}
-                  placeholder="Выберите категорию"
-                  onChange={(value: string) => {
-                    field.onChange(value)
-                    handleCategoryChange(value)
-                  }}
-                />
-              </FormField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="description"
-            render={({ field, fieldState }) => (
-              <FormField label="Описание неисправности" required error={fieldState.error?.message}>
-                <Input.TextArea {...field} autoComplete="off" rows={3} />
-              </FormField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="priority"
-            render={({ field, fieldState }) => (
-              <FormField label="Приоритет" error={fieldState.error?.message}>
-                <Select value={field.value} options={PRIORITY_OPTIONS} onChange={field.onChange} />
-              </FormField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="masterId"
-            render={({ field, fieldState }) => (
-              <FormField label="Мастер" error={fieldState.error?.message}>
-                <Select
-                  value={field.value === null ? undefined : field.value}
-                  options={masterOptions}
-                  disabled={categoryId === ''}
-                  allowClear
-                  placeholder={categoryId === '' ? 'Сначала выберите категорию' : 'Не назначать'}
-                  onChange={(value?: string) => {
-                    field.onChange(value ?? null)
-                  }}
-                />
-              </FormField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="plannedDate"
-            render={({ field, fieldState }) => (
-              <FormField label="Плановая дата" error={fieldState.error?.message}>
-                <DatePicker
-                  value={fromCalendarDate(field.value)}
-                  format={CALENDAR_DATE_DISPLAY_FORMAT}
-                  style={{ width: '100%' }}
-                  onChange={(value) => {
-                    field.onChange(toCalendarDate(value))
-                  }}
-                />
-              </FormField>
-            )}
-          />
-        </Form>
+        <RequestFormFields
+          control={control}
+          categoryOptions={categoryOptions}
+          masterOptions={masterOptions}
+          allowMasterClear
+          clientOptions={buildClientOptions(phone)}
+          onClientSelect={applyClient}
+          onCategoryChange={handleCategoryChange}
+        />
       </form>
     </Drawer>
   )

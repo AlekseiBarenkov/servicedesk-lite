@@ -1,14 +1,7 @@
 import { Tag } from 'antd'
 
+import { REQUEST_STATUS_LABEL } from '../data/model/constants'
 import type { RequestStatus } from '../data/model/constants'
-
-const STATUS_LABEL: Record<RequestStatus, string> = {
-  new: 'Новая',
-  assigned: 'Назначена',
-  in_progress: 'В работе',
-  done: 'Выполнена',
-  cancelled: 'Отменена',
-}
 
 const STATUS_COLOR: Record<RequestStatus, string> = {
   new: 'blue',
@@ -22,6 +15,6 @@ type StatusTagProps = {
   status: RequestStatus
 }
 
-const StatusTag = ({ status }: StatusTagProps) => <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status]}</Tag>
+const StatusTag = ({ status }: StatusTagProps) => <Tag color={STATUS_COLOR[status]}>{REQUEST_STATUS_LABEL[status]}</Tag>
 
 export default StatusTag

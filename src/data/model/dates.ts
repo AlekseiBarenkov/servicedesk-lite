@@ -8,7 +8,7 @@ export const CALENDAR_DATE_STORAGE_FORMAT = 'YYYY-MM-DD'
 
 export const CALENDAR_DATE_DISPLAY_FORMAT = 'DD.MM.YYYY'
 const DATE_TIME_DISPLAY_FORMAT = 'DD.MM.YYYY, HH:mm'
-const EMPTY_DATE_PLACEHOLDER = '—'
+const EMPTY_DATE_PLACEHOLDER = '-'
 
 export const nowTimestamp = (): number => Date.now()
 

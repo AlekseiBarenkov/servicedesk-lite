@@ -30,6 +30,14 @@ export const REQUEST_STATUS_VALUES = [
   REQUEST_STATUS.cancelled,
 ] as const
 
+export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
+  new: 'Новая',
+  assigned: 'Назначена',
+  in_progress: 'В работе',
+  done: 'Выполнена',
+  cancelled: 'Отменена',
+}
+
 export const HISTORY_EVENT_TYPE = {
   created: 'created',
   fieldsChanged: 'fields_changed',

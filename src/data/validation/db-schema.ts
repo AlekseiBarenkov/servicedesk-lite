@@ -1,6 +1,14 @@
 import { z } from 'zod'
 
-import { categorySchema, clientSchema, masterSchema, requestSchema, userSchema } from './schema'
+import {
+  categorySchema,
+  clientSchema,
+  commentSchema,
+  historyEntrySchema,
+  masterSchema,
+  requestSchema,
+  userSchema,
+} from './schema'
 import type { Db, DbMeta, DbTables } from '../model/types'
 
 const dbTablesSchema: z.ZodType<DbTables> = z.object({
@@ -9,6 +17,8 @@ const dbTablesSchema: z.ZodType<DbTables> = z.object({
   masters: z.array(masterSchema),
   categories: z.array(categorySchema),
   requests: z.array(requestSchema),
+  comments: z.array(commentSchema),
+  history: z.array(historyEntrySchema),
 })
 
 const dbMetaSchema: z.ZodType<DbMeta> = z.object({
@@ -23,12 +33,13 @@ export const dbSchema: z.ZodType<Db> = z
     meta: dbMetaSchema,
   })
   .superRefine((db, ctx) => {
-    const { users, clients, masters, categories, requests } = db.tables
+    const { users, clients, masters, categories, requests, comments, history } = db.tables
 
     const userIds = new Set(users.map((user) => user.userId))
     const clientIds = new Set(clients.map((client) => client.clientId))
     const categoryIds = new Set(categories.map((category) => category.categoryId))
     const mastersById = new Map(masters.map((master) => [master.masterId, master] as const))
+    const requestIds = new Set(requests.map((request) => request.requestId))
 
     if (!userIds.has(db.meta.userId)) {
       ctx.addIssue({
@@ -95,25 +106,41 @@ export const dbSchema: z.ZodType<Db> = z
           })
         }
       }
+    }
 
-      for (const [commentIndex, comment] of request.comments.entries()) {
-        if (!userIds.has(comment.userId)) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'Автор комментария отсутствует в справочнике',
-            path: ['tables', 'requests', index, 'comments', commentIndex, 'userId'],
-          })
-        }
+    for (const [index, comment] of comments.entries()) {
+      if (!requestIds.has(comment.requestId)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Комментарий ссылается на несуществующую заявку',
+          path: ['tables', 'comments', index, 'requestId'],
+        })
       }
 
-      for (const [historyIndex, entry] of request.history.entries()) {
-        if (!userIds.has(entry.userId)) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'Автор события отсутствует в справочнике',
-            path: ['tables', 'requests', index, 'history', historyIndex, 'userId'],
-          })
-        }
+      if (!userIds.has(comment.userId)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Автор комментария отсутствует в справочнике',
+          path: ['tables', 'comments', index, 'userId'],
+        })
+      }
+    }
+
+    for (const [index, entry] of history.entries()) {
+      if (!requestIds.has(entry.requestId)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Событие ссылается на несуществующую заявку',
+          path: ['tables', 'history', index, 'requestId'],
+        })
+      }
+
+      if (!userIds.has(entry.userId)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Автор события отсутствует в справочнике',
+          path: ['tables', 'history', index, 'userId'],
+        })
       }
     }
   })

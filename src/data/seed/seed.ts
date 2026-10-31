@@ -13,6 +13,8 @@ export const createInitialDb = (): Db => {
       masters: [...SEED_MASTERS],
       categories: [...SEED_CATEGORIES],
       requests: [],
+      comments: [],
+      history: [],
     },
     meta: {
       userId,

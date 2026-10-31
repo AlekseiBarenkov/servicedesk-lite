@@ -29,6 +29,7 @@ export type Master = Person & {
 
 export type Comment = {
   commentId: string
+  requestId: Request['requestId']
   userId: User['userId']
   text: string
   createdAt: number
@@ -42,6 +43,7 @@ export type FieldChange = {
 
 type HistoryEntryBase = {
   historyId: string
+  requestId: Request['requestId']
   createdAt: number
   userId: User['userId']
 }
@@ -95,8 +97,6 @@ export type Request = {
   completedAt: number | null
   cancelReason: string | null
   resolution: string | null
-  comments: Comment[]
-  history: HistoryEntry[]
 }
 
 export type DbMeta = {
@@ -110,6 +110,8 @@ export type DbTables = {
   masters: Master[]
   categories: Category[]
   requests: Request[]
+  comments: Comment[]
+  history: HistoryEntry[]
 }
 
 export type Db = {

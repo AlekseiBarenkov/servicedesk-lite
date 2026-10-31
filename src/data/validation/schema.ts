@@ -41,6 +41,7 @@ export const masterSchema: z.ZodType<Master> = personSchema.extend({
 
 export const commentSchema: z.ZodType<Comment> = z.object({
   commentId: idSchema,
+  requestId: idSchema,
   userId: idSchema,
   text: requiredText('Комментарий не может быть пустым'),
   createdAt: timestampSchema,
@@ -54,6 +55,7 @@ const fieldChangeSchema: z.ZodType<FieldChange> = z.object({
 
 const historyEntryBaseSchema = z.object({
   historyId: idSchema,
+  requestId: idSchema,
   createdAt: timestampSchema,
   userId: idSchema,
 })
@@ -97,8 +99,6 @@ export const requestSchema: z.ZodType<Request> = z
     completedAt: timestampSchema.nullable(),
     cancelReason: nullableText('Причина отмены не может быть пустой'),
     resolution: nullableText('Результат не может быть пустым'),
-    comments: z.array(commentSchema),
-    history: z.array(historyEntrySchema),
   })
   .superRefine((request, ctx) => {
     const addIssue = (message: string, field: keyof Request): void => {

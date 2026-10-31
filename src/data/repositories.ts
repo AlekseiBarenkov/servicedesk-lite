@@ -1,8 +1,26 @@
-import type { Category, Client, Db, Master, Request } from './model/types'
+import type { Category, Client, Comment, Db, HistoryEntry, Master, Request, User } from './model/types'
+
+export const usersRepo = {
+  findById: (db: Db, userId: string): User | null => db.tables.users.find((user) => user.userId === userId) ?? null,
+}
 
 export const requestsRepo = {
   findById: (db: Db, requestId: string): Request | null =>
     db.tables.requests.find((request) => request.requestId === requestId) ?? null,
+}
+
+export const commentsRepo = {
+  listByRequest: (db: Db, requestId: string): Comment[] =>
+    db.tables.comments
+      .filter((comment) => comment.requestId === requestId)
+      .sort((left, right) => left.createdAt - right.createdAt),
+}
+
+export const historyRepo = {
+  listByRequest: (db: Db, requestId: string): HistoryEntry[] =>
+    db.tables.history
+      .filter((entry) => entry.requestId === requestId)
+      .sort((left, right) => left.createdAt - right.createdAt),
 }
 
 export const clientsRepo = {
