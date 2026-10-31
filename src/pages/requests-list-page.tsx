@@ -1,29 +1,96 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
-import { Button, Empty, Flex, Table, Typography } from 'antd'
+import { SearchOutlined } from '@ant-design/icons'
+import { Button, Empty, Flex, Input, Pagination, Select, Switch, Table, Typography } from 'antd'
 import type { TableProps } from 'antd'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 
 import PriorityTag from '../components/priority-tag'
 import StatusTag from '../components/status-tag'
-import { formatCalendarDate, isOverdue, todayCalendarDate } from '../data/model/dates'
+import { PRIORITY, PRIORITY_VALUES, REQUEST_STATUS_LABEL, REQUEST_STATUS_VALUES } from '../data/model/constants'
+import type { Priority, RequestStatus } from '../data/model/constants'
+import { formatCalendarDate, todayCalendarDate } from '../data/model/dates'
 import { formatPersonName } from '../data/model/person'
+import { isRequestOverdue } from '../data/model/request'
 import type { Request } from '../data/model/types'
+import { REQUEST_LIST_PAGE_SIZE, REQUEST_LIST_SORT, selectRequestList } from '../data/request-list'
+import type { RequestListParams } from '../data/request-list'
+import { readRequestListParams, writeRequestListParams } from '../data/request-list-url'
+import { mastersRepo } from '../data/repositories'
 import { useDb } from '../data/storage/use-db'
 import { CreateRequestDrawer } from '../features/create-request-drawer'
 
 const REQUEST_COLUMNS_WIDTH = 940
+const SEARCH_DEBOUNCE_MS = 300
+
+const STATUS_OPTIONS = REQUEST_STATUS_VALUES.map((status) => ({
+  value: status,
+  label: REQUEST_STATUS_LABEL[status],
+}))
+
+const PRIORITY_OPTIONS = PRIORITY_VALUES.map((priority) => ({
+  value: priority,
+  label: PRIORITY[priority],
+}))
+
+const SORT_OPTIONS = [
+  { value: REQUEST_LIST_SORT.createdAtDesc, label: 'Сначала новые' },
+  { value: REQUEST_LIST_SORT.createdAtAsc, label: 'Сначала старые' },
+  { value: REQUEST_LIST_SORT.plannedDateAsc, label: 'Плановая дата: сначала ближние' },
+  { value: REQUEST_LIST_SORT.plannedDateDesc, label: 'Плановая дата: сначала дальние' },
+]
 
 const RequestsListPage = () => {
   const db = useDb()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [isCreateOpen, setCreateOpen] = useState(false)
+  const params = readRequestListParams(searchParams)
+  const [appliedQuery, setAppliedQuery] = useState(params.query)
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAppliedQuery(params.query)
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [params.query])
+
+  const today = todayCalendarDate()
+  const selection = selectRequestList(db, { ...params, query: appliedQuery })
   const clientsById = new Map(db.tables.clients.map((client) => [client.clientId, client] as const))
   const categoriesById = new Map(db.tables.categories.map((category) => [category.categoryId, category] as const))
   const mastersById = new Map(db.tables.masters.map((master) => [master.masterId, master] as const))
-  const today = todayCalendarDate()
-  const requests = [...db.tables.requests].sort((left, right) => right.createdAt - left.createdAt)
+  const masterOptions = mastersRepo.list(db).map((master) => ({
+    value: master.masterId,
+    label: formatPersonName(master),
+  }))
+
+  const hasActiveFilters =
+    params.query.trim() !== '' ||
+    params.statuses.length > 0 ||
+    params.priorities.length > 0 ||
+    params.masterIds.length > 0 ||
+    params.overdueOnly
+
+  const updateParams = (patch: Partial<RequestListParams>): void => {
+    setSearchParams(
+      (previous) => {
+        const previousParams = readRequestListParams(previous)
+
+        return writeRequestListParams({ ...previousParams, ...patch, page: patch.page ?? 1 })
+      },
+      { replace: true },
+    )
+  }
+
+  const resetFilters = (): void => {
+    setSearchParams(new URLSearchParams(), { replace: true })
+    setAppliedQuery('')
+  }
 
   const openCreateDrawer = (): void => {
     setCreateOpen(true)
@@ -35,7 +102,7 @@ const RequestsListPage = () => {
 
   const handleCreated = (requestId: string): void => {
     setCreateOpen(false)
-    navigate(`/requests/${requestId}`)
+    navigate(`/requests/${requestId}`, { state: { listSearch: location.search } })
   }
 
   const columns: TableProps<Request>['columns'] = [
@@ -43,7 +110,11 @@ const RequestsListPage = () => {
       title: 'Номер',
       key: 'number',
       width: 120,
-      render: (_, request) => <Link to={`/requests/${request.requestId}`}>{request.number}</Link>,
+      render: (_, request) => (
+        <Link to={`/requests/${request.requestId}`} state={{ listSearch: location.search }}>
+          {request.number}
+        </Link>
+      ),
     },
     {
       title: 'Клиент',
@@ -89,12 +160,25 @@ const RequestsListPage = () => {
       key: 'plannedDate',
       width: 150,
       render: (_, request) => (
-        <Typography.Text type={isOverdue(request.plannedDate, today) ? 'danger' : undefined}>
+        <Typography.Text type={isRequestOverdue(request, today) ? 'danger' : undefined}>
           {formatCalendarDate(request.plannedDate)}
         </Typography.Text>
       ),
     },
   ]
+
+  const emptyText =
+    db.tables.requests.length === 0 ? (
+      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Заявок пока нет">
+        <Button type="primary" onClick={openCreateDrawer}>
+          Создать заявку
+        </Button>
+      </Empty>
+    ) : (
+      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Ничего не найдено">
+        <Button onClick={resetFilters}>Сбросить фильтры</Button>
+      </Empty>
+    )
 
   return (
     <Flex vertical gap={16}>
@@ -106,26 +190,95 @@ const RequestsListPage = () => {
           Создать заявку
         </Button>
       </Flex>
+      <Flex wrap gap={12} align="center">
+        <Input
+          allowClear
+          value={params.query}
+          prefix={<SearchOutlined />}
+          placeholder="Номер, клиент или телефон"
+          style={{ width: 280 }}
+          onChange={(event) => {
+            updateParams({ query: event.target.value })
+          }}
+        />
+        <Select
+          mode="multiple"
+          allowClear
+          value={params.statuses}
+          options={STATUS_OPTIONS}
+          placeholder="Статус"
+          maxTagCount="responsive"
+          style={{ minWidth: 200 }}
+          onChange={(value: RequestStatus[]) => {
+            updateParams({ statuses: value })
+          }}
+        />
+        <Select
+          mode="multiple"
+          allowClear
+          value={params.priorities}
+          options={PRIORITY_OPTIONS}
+          placeholder="Приоритет"
+          maxTagCount="responsive"
+          style={{ minWidth: 200 }}
+          onChange={(value: Priority[]) => {
+            updateParams({ priorities: value })
+          }}
+        />
+        <Select
+          mode="multiple"
+          allowClear
+          value={params.masterIds}
+          options={masterOptions}
+          placeholder="Мастер"
+          maxTagCount="responsive"
+          style={{ minWidth: 220 }}
+          onChange={(value: string[]) => {
+            updateParams({ masterIds: value })
+          }}
+        />
+        <Select
+          value={params.sort}
+          options={SORT_OPTIONS}
+          style={{ minWidth: 260 }}
+          onChange={(value: (typeof SORT_OPTIONS)[number]['value']) => {
+            updateParams({ sort: value })
+          }}
+        />
+        <Flex align="center" gap={8}>
+          <Switch
+            checked={params.overdueOnly}
+            onChange={(value) => {
+              updateParams({ overdueOnly: value })
+            }}
+          />
+          <Typography.Text>Только просроченные</Typography.Text>
+        </Flex>
+        <Button disabled={!hasActiveFilters} onClick={resetFilters}>
+          Сбросить фильтры
+        </Button>
+      </Flex>
       <Table<Request>
         rowKey="requestId"
         columns={columns}
-        dataSource={requests}
-        pagination={{
-          pageSize: 10,
-          showSizeChanger: false,
-          showTotal: (total) => `Всего заявок: ${total}`,
-        }}
+        dataSource={selection.items}
+        pagination={false}
         scroll={{ x: REQUEST_COLUMNS_WIDTH }}
-        locale={{
-          emptyText: (
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Заявок пока нет">
-              <Button type="primary" onClick={openCreateDrawer}>
-                Создать заявку
-              </Button>
-            </Empty>
-          ),
-        }}
+        locale={{ emptyText }}
       />
+      {selection.total > 0 && (
+        <Pagination
+          current={selection.page}
+          total={selection.total}
+          pageSize={REQUEST_LIST_PAGE_SIZE}
+          showSizeChanger={false}
+          showTotal={(total) => `Всего заявок: ${total}`}
+          onChange={(value) => {
+            updateParams({ page: value })
+          }}
+          style={{ alignSelf: 'flex-end' }}
+        />
+      )}
       <CreateRequestDrawer open={isCreateOpen} onClose={closeCreateDrawer} onCreated={handleCreated} />
     </Flex>
   )

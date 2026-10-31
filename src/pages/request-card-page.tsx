@@ -1,12 +1,13 @@
 import { useState } from 'react'
 
 import { Button, Card, Descriptions, Flex, Result, Space, Typography } from 'antd'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
 
 import PriorityTag from '../components/priority-tag'
 import StatusTag from '../components/status-tag'
 import { REQUEST_STATUS } from '../data/model/constants'
-import { formatCalendarDate, formatDateTime, isOverdue, todayCalendarDate } from '../data/model/dates'
+import { formatCalendarDate, formatDateTime, todayCalendarDate } from '../data/model/dates'
+import { isRequestOverdue } from '../data/model/request'
 import { formatPersonName } from '../data/model/person'
 import { categoriesRepo, clientsRepo, mastersRepo, requestsRepo } from '../data/repositories'
 import { useDb } from '../data/storage/use-db'
@@ -16,10 +17,22 @@ import { RequestHistory } from '../features/request-history'
 import { RequestStatusActions } from '../features/request-status-actions'
 import { isFinalStatus } from '../data/operations/shared'
 
+const readListSearch = (state: unknown): string => {
+  if (typeof state !== 'object' || state === null || !('listSearch' in state)) {
+    return ''
+  }
+
+  const { listSearch } = state
+
+  return typeof listSearch === 'string' ? listSearch : ''
+}
+
 const RequestCardPage = () => {
   const { requestId } = useParams()
+  const location = useLocation()
   const db = useDb()
   const [isEditOpen, setEditOpen] = useState(false)
+  const backToList = `/requests${readListSearch(location.state)}`
   const request = requestId === undefined ? null : requestsRepo.findById(db, requestId)
 
   if (request === null) {
@@ -46,7 +59,7 @@ const RequestCardPage = () => {
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <Card>
         <Flex vertical gap={12}>
-          <Link to="/requests" style={{ alignSelf: 'flex-start' }}>
+          <Link to={backToList} style={{ alignSelf: 'flex-start' }}>
             К заявкам
           </Link>
           <Flex justify="space-between" align="center" wrap gap={12}>
@@ -100,7 +113,7 @@ const RequestCardPage = () => {
               key: 'plannedDate',
               label: 'Плановая дата',
               children: (
-                <Typography.Text type={isOverdue(request.plannedDate, today) ? 'danger' : undefined}>
+                <Typography.Text type={isRequestOverdue(request, today) ? 'danger' : undefined}>
                   {formatCalendarDate(request.plannedDate)}
                 </Typography.Text>
               ),
